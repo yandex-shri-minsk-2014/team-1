@@ -24,6 +24,7 @@ gulp.task('index.html', function () {
         .src(
           [ 'blocks/**/*.css'
           , 'libs/codemirror/lib/codemirror.css'
+          , 'libs/codemirror/theme/monokai.css'
           ]
         )
         .pipe(concat('index.css'))
