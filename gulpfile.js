@@ -39,6 +39,9 @@ gulp.task('index.html', function () {
         , 'libs/lodash/dist/lodash.min.js'
         , 'libs/socket.io-client/socket.io.js'
         , 'libs/codemirror/lib/codemirror.js'
+        , 'libs/codemirror/addon/selection/mark-selection.js'
+        , 'libs/codemirror/addon/edit/matchbrackets.js'
+        , 'libs/codemirror/mode/javascript/javascript.js'
         , 'blocks/page/page.js'
         , 'blocks/**/*.js'
         ]
