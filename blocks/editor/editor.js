@@ -1,77 +1,95 @@
 var Team1 = Team1 || {}
 
-Team1.Editor = function (info) {
-   _.bindAll(this, "onCursorActivity")
+Team1.Editor = function () {
+  _.bindAll(this, "onCursorActivity")
 
-  this.cursorHtml = "<div class='CodeMirror-cursor' style='height: 13px; left: 10px;' />"
-  this.cursorsContainerEl = $(".CodeMirror-cursors")
+  this.codeEditor = CodeMirror.fromTextArea($("#docEditor")[0]
+    , { mode: "javascript"
+      , lineNumbers: true
+      , matchBrackets: true
+    }
+  )
 
-  this.codeEditor = CodeMirror.fromTextArea($("#docEditor")[0])
-
-  this.addCursors(
-    [
-      { id: 1
-      , color: "red"
-      , position:
-        { line: 1
-        , ch: 2
-        }
-      }
-      , {
-        id: 2
-      , color: "yellow"
-      , position:
-        { line: 2
-        , ch: 5
-        }
-      }
-    ])
+  this.testCursorsAndSelections()
 
   this.codeEditor.on("cursorActivity", this.onCursorActivity)
 }
 
-Team1.Editor.prototype.onCursorActivity = function (data) {
-  console.log(data)
+Team1.Editor.prototype.onCursorActivity = function () {
+
 }
 
-Team1.Editor.prototype.addCursors = function (usersInfo) {
-  var self = this
+Team1.Editor.prototype.addCursor = function (cursorInfo) {
+  var opt = { className: this.getCursorClass(cursorInfo.id, cursorInfo.color)}
+  , to = {
+    ch: cursorInfo.position.ch + 1,
+    line: cursorInfo.position.line
+  }
 
-  _.each(usersInfo, function (userInfo) {
-    self.addCursor(userInfo)
-  })
+  this.codeEditor.markText(cursorInfo.position, to, opt)
+}
+Team1.Editor.prototype.getCursorClass = function (id, color) {
+  return "cm-cursor cm-cursor-" + color + " cursor-id-" + id
 }
 
-Team1.Editor.prototype.addCursor = function (userInfo) {
-  this.cursorsContainerEl.after(this.getCursorEl(userInfo))
+Team1.Editor.prototype.updateCursor = function (cursorInfo) {
+  $(".cursor-id-"+cursorInfo.id).remove()
+  this.addCursor(cursorInfo)
 }
 
-Team1.Editor.prototype.getCursorEl = function (userInfo) {
-  return $(this.cursorHtml).css({
-    borderLeftColor: userInfo.color
-    , left: this.getLeftCursorPosition(userInfo.position.ch)
-    , top: this.getTopCursorPosition(userInfo.position.line)
-  }).prop("id", userInfo.id)
+Team1.Editor.prototype.removeCursor = function (id) {
+  $("#"+id).remove()
 }
 
-Team1.Editor.prototype.getTopCursorPosition = function (line) {
-  return Math.round(this.codeEditor.defaultTextHeight() * line)
+Team1.Editor.prototype.addSelection = function (selectionInfo) {
+  var opt = { className: "cm-background-"+selectionInfo.color }
+
+  this.codeEditor.markText(selectionInfo.from, selectionInfo.to, opt)
 }
 
+Team1.Editor.prototype.testCursorsAndSelections = function () {
+  this.addCursor(
+    { id: 1
+    , position :
+      { line:2
+      , ch:9
+      }
+    , color : "red"
+    }
+  )
 
-Team1.Editor.prototype.getLeftCursorPosition = function (ch) {
-  return Math.round(this.getDefaultCharWidth() * ch) + this.DEFAULT_LEFT_MARGIN
+  this.addCursor(
+    { id: 1
+    , position :
+      { line:3
+      , ch:15
+      }
+    , color : "green"
+    }
+  )
+
+  this.addSelection(
+    { from :
+      { line:0
+      , ch:9
+      }
+    , to :
+      { line:1
+      , ch:10
+      }
+    , color : "red"
+    }
+  )
+  this.addSelection(
+    { from :
+      { line:1
+      , ch:1
+      }
+    , to :
+      { line:1
+      , ch:20
+      }
+    , color : "yellow"
+    }
+  )
 }
-
-Team1.Editor.prototype.getDefaultCharWidth = function () {
-  return this.codeEditor.defaultCharWidth();
-}
-
-
-Team1.Editor.prototype.DEFAULT_LEFT_MARGIN = 3
-
-
-//updateCursors
-//removeCursor
-//addSelection
-//removeSelection

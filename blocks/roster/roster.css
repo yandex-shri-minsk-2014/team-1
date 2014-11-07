@@ -1,6 +1,7 @@
 .roster {
   width: 30%;
   height: 100%;
+  border-left: 1px solid #CCC;
 }
 .roster-list {
   padding: 20px 0 0 30px;
