@@ -7,6 +7,7 @@ Team1.Editor = function () {
     , { mode: "javascript"
       , lineNumbers: true
       , matchBrackets: true
+      , theme: "monokai"
     }
   )
 
@@ -28,23 +29,39 @@ Team1.Editor.prototype.addCursor = function (cursorInfo) {
 
   this.codeEditor.markText(cursorInfo.position, to, opt)
 }
+
 Team1.Editor.prototype.getCursorClass = function (id, color) {
   return "cm-cursor cm-cursor-" + color + " cursor-id-" + id
 }
 
 Team1.Editor.prototype.updateCursor = function (cursorInfo) {
-  $(".cursor-id-"+cursorInfo.id).remove()
+  this.removeCursor(cursorInfo.id)
   this.addCursor(cursorInfo)
 }
 
 Team1.Editor.prototype.removeCursor = function (id) {
-  $("#"+id).remove()
+  $(".cursor-id-" + id).contents().unwrap()
 }
 
 Team1.Editor.prototype.addSelection = function (selectionInfo) {
-  var opt = { className: "cm-background-"+selectionInfo.color }
+  var opt = {
+    className: this.getSelectionClass(selectionInfo.id, selectionInfo.color)
+  }
 
   this.codeEditor.markText(selectionInfo.from, selectionInfo.to, opt)
+}
+
+Team1.Editor.prototype.getSelectionClass = function (id, color) {
+  return "cm-background-" + color + " selection-id-" + id
+}
+
+Team1.Editor.prototype.updateSelection = function (selectionInfo) {
+  this.removeSelection(selectionInfo.id)
+  this.addSelection(selectionInfo)
+}
+
+Team1.Editor.prototype.removeSelection = function (id) {
+  $(".selection-id-" + id).contents().unwrap()
 }
 
 Team1.Editor.prototype.testCursorsAndSelections = function () {
@@ -59,7 +76,7 @@ Team1.Editor.prototype.testCursorsAndSelections = function () {
   )
 
   this.addCursor(
-    { id: 1
+    { id: 2
     , position :
       { line:3
       , ch:15
@@ -78,6 +95,7 @@ Team1.Editor.prototype.testCursorsAndSelections = function () {
       , ch:10
       }
     , color : "red"
+    , id : 1
     }
   )
   this.addSelection(
@@ -90,6 +108,7 @@ Team1.Editor.prototype.testCursorsAndSelections = function () {
       , ch:20
       }
     , color : "yellow"
+    , id : 2
     }
   )
 }
