@@ -1,19 +1,20 @@
 var _ = require('lodash-node')
   // Generator uniq id for documents
-  , getUID = function () {
-      return _.uniqueId('file-')
-    }
+  , getUID = function () { return _.uniqueId('file-') }
   , Documents = {}
   , Document = module.exports = function (props) {
       props = props || {}
-      this.id = props.id || getUID()
+      this.id = props.id || getUID() // стоит сложить в переменную
       if (Documents[this.id] instanceof Document) return Documents[this.id]
       this.collaborators = []
-      this.props = _.extend({}, props)
+      this.props = _.extend({}, props) // если зачем-то нужно копирование
+                                       // (не глубокое!), то нужно написать
+                                       // комментарий зачем
       delete this.props.id
       Documents[this.id] = this
     }
-  , proto = Document.prototype
+  , proto = Document.prototype // переменная не нужна,
+                               // если использовать _.extend
 
 
 
@@ -26,10 +27,12 @@ var _ = require('lodash-node')
  * @returns {Document}
  */
 proto.notifyCollaborators = function (data, collaborators) {
-  _.each(collaborators || this.collaborators, function (collaborator) {
-    if (this.isPresent(collaborator))
-      collaborator.emit(data)
-  }, this)
+  _.each( collaborators || this.collaborators
+        , function (collaborator) {
+            if (this.isPresent(collaborator)) collaborator.emit(data)
+          }
+        , this
+        )
   return this
 }
 //endregion
@@ -43,10 +46,9 @@ proto.notifyCollaborators = function (data, collaborators) {
  */
 proto.addCollaborator = function (collaborator) {
   if (!this.isPresent(collaborator)) {
-    this.notifyCollaborators({
-      a: 'join',
-      user : collaborator.exportPublicData()
-    })
+    this.notifyCollaborators({ a: 'join'
+                             , user : collaborator.exportPublicData()
+                             })
     this.collaborators.push(collaborator)
   }
   return this
@@ -60,10 +62,9 @@ proto.addCollaborator = function (collaborator) {
 proto.removeCollaborator = function (collaborator) {
   if (this.isPresent(collaborator)) {
     _.pull(this.collaborators, collaborator)
-    this.notifyCollaborators({
-      a: 'leave',
-      user: collaborator.exportOnlyId()
-    })
+    this.notifyCollaborators({ a: 'leave'
+                             , user: collaborator.exportOnlyId()
+                             })
   }
   return this
 }
@@ -74,6 +75,7 @@ proto.removeCollaborator = function (collaborator) {
  * @returns {boolean}
  */
 proto.isPresent = function (collaborator) {
+  // по факту делается _.contains
   return _.indexOf(this.collaborators, collaborator) > -1
 }
 //endregion
@@ -85,9 +87,7 @@ proto.isPresent = function (collaborator) {
  * @returns {{id: *}}
  */
 proto.exportOnlyId = function () {
-  return {
-    id: this.id
-  }
+  return { id: this.id }
 }
 
 /**
@@ -95,10 +95,13 @@ proto.exportOnlyId = function () {
  * @returns {*}
  */
 proto.exportPublicData = function () {
-  return _.extend(this.exportOnlyId(), {
-    users: _.map(this.collaborators, function (collaborator) {
-      return collaborator.exportPublicData()
-    })
-  })
+  return _.extend( this.exportOnlyId()
+                 , { users: _.map( this.collaborators
+                                 , function (collaborator) {
+                                     return collaborator.exportPublicData()
+                                   }
+                                 )
+                   }
+                 )
 }
 //endregion
