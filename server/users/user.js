@@ -50,97 +50,79 @@ var _ = require('lodash-node')
 
       share.listen(this._stream)
     }
-  , proto = User.prototype // переменная не нужна, если использовать _.extend
 
-proto.onMessage = function (data) {
-  data = JSON.parse(data)
+_.extend(User.prototype, {
+  onMessage: function (data) {
+    data = JSON.parse(data)
 
-  if (data.a === 'open') {
-    this.onOpenEvent(data)
-    return
+    if (data.a === 'open') {
+      this.onOpenEvent(data)
+      return
+    }
+
+    return this._stream.push(data)
+  }
+  /**
+   * Fire event on client
+   * @param data
+   * @returns {User}
+   */
+  , emit: function (data) {
+    this._connection.send(JSON.stringify(data))
+    return this
+  }
+  , exportOnlyId: function () {
+    return { id: this.id }
+  }
+  /**
+   * object with user's id + title
+   * @returns {*}
+   */
+  , exportPublicData: function () {
+    return _.extend(this.exportOnlyId(), { title: this.props.title })
+  }
+  /**
+   * owner data
+   * @returns {*}
+   */
+  , exportPrivateData: function () {
+    return _.extend(this.exportPublicData(), {})
   }
 
-  return this._stream.push(data)
-}
-/**
- * Fire event on client
- * @param data
- * @returns {User}
- */
-proto.emit = function (data) {
-  this._connection.send(JSON.stringify(data))
-  return this
-}
+  , openDocument: function (document) {
+    this.document = Documents.factory(document).addCollaborator(this)
+    return this.emit({ a: 'open'
+      , user: this.exportPrivateData()
+      , document: this.document.exportPublicData()
+    })
+  }
 
-/**
- * Simple export
- * @returns {{id: *}}
- */
-proto.exportOnlyId = function () {
-  return { id: this.id }
-}
+  , closeDocument: function () {
+    if (this.document !== null) this.document.removeCollaborator(this)
+    return this
+  }
+  /**
+   * Update user data/props on open event
+   * @param data
+   * @returns {User}
+   */
+  , updateData: function (data) {
+    delete data.id
 
-/**
- * Public data for other users
- * @returns {Object|*}
- */
-proto.exportPublicData = function () {
-  return _.extend(this.exportOnlyId(), { title: this.props.title })
-}
+    _.extend( this.props
+      , data
+      , function (a, b) { return b ? b : a }
+    )
 
-/**
- * Private data for owner
- * @returns {Object|*}
- */
-proto.exportPrivateData = function () {
-  return _.extend(this.exportPublicData(), {})
-}
-/**
- * Open document
- * @param document {Document}
- */
-proto.openDocument = function (document) {
-  this.document = Documents.factory(document).addCollaborator(this)
-  return this.emit({ a: 'open'
-            , user: this.exportPrivateData()
-            , document: this.document.exportPublicData()
-            })
-}
-/**
- * Close last opened document
- */
-proto.closeDocument = function () {
-  if (this.document !== null) this.document.removeCollaborator(this)
-  return this
-}
-/**
- * Update user data/props
- * @param data
- * @returns {User}
- */
-proto.updateData = function (data) {
-  delete data.id
+    return this
+  }
 
-  _.extend( this.props
-          , data
-          , function (a, b) { return b ? b : a }
-          )
+  , onOpenEvent: function (data) {
+    if (data.user) this.updateData(data.user)
+    return this.openDocument(data.document)
+  }
 
-  return this
-}
-/**
- * Helper for our API
- * @param data
- * @returns {User}
- * @private
- */
-proto.onOpenEvent = function (data) {
-  if (data.user) this.updateData(data.user)
-  return this.openDocument(data.document)
-}
-/**
- * Destroy info about user
- */
-proto.destroy = function () {
-  return this.closeDocument()
-}
+  , destroy: function () {
+    return this.closeDocument()
+  }
+})
