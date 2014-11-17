@@ -12,35 +12,35 @@ var _ = require('lodash-node')
     var _connection = this._connection =  options.connection
       , _stream = this._stream = Duplex({ objectMode: true })
 
-      this.id = getUID()
-      this.document = null
-      this.props = { title: 'Anonymous' }
+    this.id = getUID()
+    this.document = null
+    this.props = { title: 'Anonymous' }
 
-      _stream._write = function (chunk, encoding, callback) {
-        _connection.send(JSON.stringify(chunk))
-        return callback()
-      }
-
-      _stream._read = function () {}
-
-      _stream.headers = _connection.upgradeReq.headers
-      _stream.remoteAddress = _connection.upgradeReq.connection.remoteAddress
-
-      _connection
-        .on('message', _.bind(this.onMessage, this))
-        .on('close', _.bind(this.onClose, this))
-
-      _stream
-        .on('error', function (msg) {
-          console.log('error', msg)
-          return _connection.close(msg)
-        })
-        .on('end', function () {
-          return _connection.close()
-        })
-
-      share.listen(_stream)
+    _stream._write = function (chunk, encoding, callback) {
+      _connection.send(JSON.stringify(chunk))
+      return callback()
     }
+
+    _stream._read = function () {}
+
+    _stream.headers = _connection.upgradeReq.headers
+    _stream.remoteAddress = _connection.upgradeReq.connection.remoteAddress
+
+    _connection
+      .on('message', _.bind(this.onMessage, this))
+      .on('close', _.bind(this.onClose, this))
+
+    _stream
+      .on('error', function (msg) {
+        console.log('error', msg)
+        return _connection.close(msg)
+      })
+      .on('end', function () {
+        return _connection.close()
+      })
+
+    share.listen(_stream)
+  }
 
 _.extend(User.prototype, {
   onMessage: function (data) {
