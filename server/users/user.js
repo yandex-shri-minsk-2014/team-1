@@ -8,11 +8,8 @@ var _ = require('lodash-node')
   , getUID = function () { return _.uniqueId('user-') }
 
   , Documents = require('../documents')
-  , User = function (options) {
+  , User = module.exports = function (options) {
       var self = this
-
-      // используется один раз, можно сделать bind там
-      _.bindAll(this, 'onMessage')
 
       this._connection = options.connection // стоит сложить в переменную
       this._stream = new Duplex({ objectMode: true }) // тоже в переменную
@@ -33,46 +30,40 @@ var _ = require('lodash-node')
       this._stream.remoteAddress =
         this._connection.upgradeReq.connection.remoteAddress
 
-      this._connection.on('message', this.onMessage)
+      this._connection
+        .on('message', _.bind(this.onMessage, this))
+        .on('close', function (reason) {
+          self._stream.push(null)
+          self._stream.emit('close')
+          self.destroy()
+          return self._connection.close(reason)
+        })
 
-      this._stream.on('error', function (msg) {
-        console.log('error', msg)
-        return self._connection.close(msg)
-      })
-
-      this._connection.on('close', function (reason) {
-        self._stream.push(null)
-        self._stream.emit('close')
-        self.destroy()
-        return self._connection.close(reason)
-      })
-
-      this._stream.on('end', function () { // можно делать чейнинг в вызовах on
-        return self._connection.close()
-      })
+      this._stream
+        .on('error', function (msg) {
+          console.log('error', msg)
+          return self._connection.close(msg)
+        })
+        .on('end', function () { // можно делать чейнинг в вызовах on
+          return self._connection.close()
+        })
 
       share.listen(this._stream)
     }
   , proto = User.prototype // переменная не нужна, если использовать _.extend
 
-// по аналогии с document.js можно делать прямо при объявлении переменной
-module.exports = User
-
 proto.onMessage = function (data) {
-  // вместо новой jsonData можно использовать data
-  var jsonData = JSON.parse(data)
+  data = JSON.parse(data)
 
-  if (jsonData.a === 'open') {
-    this.onOpenEvent(jsonData)
+  if (data.a === 'open') {
+    this.onOpenEvent(data)
     return
   }
 
-  return this._stream.push(jsonData)
+  return this._stream.push(data)
 }
-
 /**
- * Fire event on client (Unsafe!) TODO: Discuss with Team
- * @param event
+ * Fire event on client
  * @param data
  * @returns {User}
  */
@@ -80,10 +71,6 @@ proto.emit = function (data) {
   this._connection.send(JSON.stringify(data))
   return this
 }
-//endregion
-
-
-//region *** Exports data API ***
 
 /**
  * Simple export
@@ -108,23 +95,17 @@ proto.exportPublicData = function () {
 proto.exportPrivateData = function () {
   return _.extend(this.exportPublicData(), {})
 }
-//endregion
-
-
-//region *** Document API ***
 /**
  * Open document
  * @param document {Document}
  */
 proto.openDocument = function (document) {
   this.document = Documents.factory(document).addCollaborator(this)
-  this.emit({ a: 'open'
+  return this.emit({ a: 'open'
             , user: this.exportPrivateData()
             , document: this.document.exportPublicData()
             })
-  return this // предыдущий вызов возвращает this
 }
-
 /**
  * Close last opened document
  */
@@ -132,11 +113,6 @@ proto.closeDocument = function () {
   if (this.document !== null) this.document.removeCollaborator(this)
   return this
 }
-//endregion
-
-
-//region *** Common API & Helpers ***
-
 /**
  * Update user data/props
  * @param data
@@ -152,21 +128,19 @@ proto.updateData = function (data) {
 
   return this
 }
-
 /**
- * Helper for our "stupid" API
+ * Helper for our API
  * @param data
  * @returns {User}
  * @private
  */
 proto.onOpenEvent = function (data) {
   if (data.user) this.updateData(data.user)
-  this.openDocument(data.document)
-  return this // предыдущий вызов возвращает this
+  return this.openDocument(data.document)
 }
 /**
  * Destroy info about user
  */
 proto.destroy = function () {
-  this.closeDocument() // стоит по аналогии добавить return
+  return this.closeDocument()
 }

@@ -16,9 +16,6 @@ var _ = require('lodash-node')
   , proto = Document.prototype // переменная не нужна,
                                // если использовать _.extend
 
-
-
-//region *** Events API ***
 /**
  * Fire event on collaborators
  * @param event {String}
@@ -35,10 +32,6 @@ proto.notifyCollaborators = function (data, collaborators) {
         )
   return this
 }
-//endregion
-
-
-//region *** Manage collaborators ***
 /**
  * Attach collaborator to the document
  * @param collaborator {User}
@@ -53,7 +46,6 @@ proto.addCollaborator = function (collaborator) {
   }
   return this
 }
-
 /**
  * Detach collaborator from document
  * @param collaborator {User}
@@ -68,7 +60,6 @@ proto.removeCollaborator = function (collaborator) {
   }
   return this
 }
-
 /**
  * Check, collaborator is present or not in the document
  * @param collaborator {User}
@@ -78,10 +69,6 @@ proto.isPresent = function (collaborator) {
   // по факту делается _.contains
   return _.indexOf(this.collaborators, collaborator) > -1
 }
-//endregion
-
-
-//region *** Exports API ***
 /**
  * Simple export
  * @returns {{id: *}}
@@ -89,7 +76,6 @@ proto.isPresent = function (collaborator) {
 proto.exportOnlyId = function () {
   return { id: this.id }
 }
-
 /**
  * Public data for users
  * @returns {*}
@@ -104,4 +90,3 @@ proto.exportPublicData = function () {
                    }
                  )
 }
-//endregion
