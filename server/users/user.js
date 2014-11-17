@@ -9,46 +9,37 @@ var _ = require('lodash-node')
 
   , Documents = require('../documents')
   , User = module.exports = function (options) {
-      var self = this
-
-      this._connection = options.connection // стоит сложить в переменную
-      this._stream = new Duplex({ objectMode: true }) // тоже в переменную
+    var _connection = this._connection =  options.connection
+      , _stream = this._stream = new Duplex({ objectMode: true })
 
       this.id = getUID()
       this.document = null
       this.props = { title: 'Anonymous' }
 
-      this._stream._write = function (chunk, encoding, callback) {
-        self._connection.send(JSON.stringify(chunk))
-
+      _stream._write = function (chunk, encoding, callback) {
+        _connection.send(JSON.stringify(chunk))
         return callback()
       }
 
-      this._stream._read = function () {}
+      _stream._read = function () {}
 
-      this._stream.headers = this._connection.upgradeReq.headers
-      this._stream.remoteAddress =
-        this._connection.upgradeReq.connection.remoteAddress
+      _stream.headers = _connection.upgradeReq.headers
+      _stream.remoteAddress = _connection.upgradeReq.connection.remoteAddress
 
-      this._connection
+      _connection
         .on('message', _.bind(this.onMessage, this))
-        .on('close', function (reason) {
-          self._stream.push(null)
-          self._stream.emit('close')
-          self.destroy()
-          return self._connection.close(reason)
-        })
+        .on('close', _.bind(this.onClose, this))
 
-      this._stream
+      _stream
         .on('error', function (msg) {
           console.log('error', msg)
-          return self._connection.close(msg)
+          return _connection.close(msg)
         })
         .on('end', function () { // можно делать чейнинг в вызовах on
-          return self._connection.close()
+          return _connection.close()
         })
 
-      share.listen(this._stream)
+      share.listen(_stream)
     }
 
 _.extend(User.prototype, {
@@ -61,6 +52,12 @@ _.extend(User.prototype, {
     }
 
     return this._stream.push(data)
+  }
+  , onClose: function (reason) {
+    this._stream.push(null)
+    this._stream.emit('close')
+    this.destroy()
+    return this._connection.close(reason)
   }
   /**
    * Fire event on client
