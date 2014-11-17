@@ -8,118 +8,165 @@ var _ = require('lodash-node')
   , getUID = function () { return _.uniqueId('user-') }
 
   , Documents = require('../documents')
-  , User = module.exports = function (options) {
-    var _connection = this._connection =  options.connection
-      , _stream = this._stream = Duplex({ objectMode: true })
+  , User = function (options) {
+      var self = this
 
-    this.id = getUID()
-    this.document = null
-    this.props = { title: 'Anonymous' }
+      // используется один раз, можно сделать bind там
+      _.bindAll(this, 'onMessage')
 
-    _stream._write = function (chunk, encoding, callback) {
-      _connection.send(JSON.stringify(chunk))
-      return callback()
-    }
+      this._connection = options.connection // стоит сложить в переменную
+      this._stream = new Duplex({ objectMode: true }) // тоже в переменную
 
-    _stream._read = function () {}
+      this.id = getUID()
+      this.document = null
+      this.props = { title: 'Anonymous' }
 
-    _stream.headers = _connection.upgradeReq.headers
-    _stream.remoteAddress = _connection.upgradeReq.connection.remoteAddress
+      this._stream._write = function (chunk, encoding, callback) {
+        self._connection.send(JSON.stringify(chunk))
 
-    _connection
-      .on('message', _.bind(this.onMessage, this))
-      .on('close', _.bind(this.onClose, this))
+        return callback()
+      }
 
-    _stream
-      .on('error', function (msg) {
+      this._stream._read = function () {}
+
+      this._stream.headers = this._connection.upgradeReq.headers
+      this._stream.remoteAddress =
+        this._connection.upgradeReq.connection.remoteAddress
+
+      this._connection.on('message', this.onMessage)
+
+      this._stream.on('error', function (msg) {
         console.log('error', msg)
-        return _connection.close(msg)
-      })
-      .on('end', function () {
-        return _connection.close()
+        return self._connection.close(msg)
       })
 
-    share.listen(_stream)
-  }
+      this._connection.on('close', function (reason) {
+        self._stream.push(null)
+        self._stream.emit('close')
+        self.destroy()
+        return self._connection.close(reason)
+      })
 
-_.extend(User.prototype, {
-  onMessage: function (data) {
-    data = JSON.parse(data)
+      this._stream.on('end', function () { // можно делать чейнинг в вызовах on
+        return self._connection.close()
+      })
 
-    if (data.a === 'open') {
-      this.onOpenEvent(data)
-      return
+      share.listen(this._stream)
     }
+  , proto = User.prototype // переменная не нужна, если использовать _.extend
 
-    return this._stream.push(data)
-  }
-  , onClose: function (reason) {
-    this._stream.push(null)
-    this._stream.emit('close')
-    this.destroy()
-    return this._connection.close(reason)
-  }
-  /**
-   * Fire event on client
-   * @param data
-   * @returns {User}
-   */
-  , emit: function (data) {
-    this._connection.send(JSON.stringify(data))
-    return this
-  }
-  , exportOnlyId: function () {
-    return { id: this.id }
-  }
-  /**
-   * object with user's id + title
-   * @returns {*}
-   */
-  , exportPublicData: function () {
-    return _.extend(this.exportOnlyId(), { title: this.props.title })
-  }
-  /**
-   * owner data
-   * @returns {*}
-   */
-  , exportPrivateData: function () {
-    return _.extend(this.exportPublicData(), {})
+// по аналогии с document.js можно делать прямо при объявлении переменной
+module.exports = User
+
+proto.onMessage = function (data) {
+  // вместо новой jsonData можно использовать data
+  var jsonData = JSON.parse(data)
+
+  if (jsonData.a === 'open') {
+    this.onOpenEvent(jsonData)
+    return
   }
 
-  , openDocument: function (document) {
-    this.document = Documents.factory(document).addCollaborator(this)
-    return this.emit({ a: 'open'
-      , user: this.exportPrivateData()
-      , document: this.document.exportPublicData()
-    })
-  }
+  return this._stream.push(jsonData)
+}
 
-  , closeDocument: function () {
-    if (this.document !== null) this.document.removeCollaborator(this)
-    return this
-  }
-  /**
-   * Update user data/props on open event
-   * @param data
-   * @returns {User}
-   */
-  , updateData: function (data) {
-    delete data.id
+/**
+ * Fire event on client (Unsafe!) TODO: Discuss with Team
+ * @param event
+ * @param data
+ * @returns {User}
+ */
+proto.emit = function (data) {
+  this._connection.send(JSON.stringify(data))
+  return this
+}
+//endregion
 
-    _.extend( this.props
-      , data
-      , function (a, b) { return b ? b : a }
-    )
 
-    return this
-  }
+//region *** Exports data API ***
 
-  , onOpenEvent: function (data) {
-    if (data.user) this.updateData(data.user)
-    return this.openDocument(data.document)
-  }
+/**
+ * Simple export
+ * @returns {{id: *}}
+ */
+proto.exportOnlyId = function () {
+  return { id: this.id }
+}
 
-  , destroy: function () {
-    return this.closeDocument()
-  }
-})
+/**
+ * Public data for other users
+ * @returns {Object|*}
+ */
+proto.exportPublicData = function () {
+  return _.extend(this.exportOnlyId(), { title: this.props.title })
+}
+
+/**
+ * Private data for owner
+ * @returns {Object|*}
+ */
+proto.exportPrivateData = function () {
+  return _.extend(this.exportPublicData(), {})
+}
+//endregion
+
+
+//region *** Document API ***
+/**
+ * Open document
+ * @param document {Document}
+ */
+proto.openDocument = function (document) {
+  this.document = Documents.factory(document).addCollaborator(this)
+  this.emit({ a: 'open'
+            , user: this.exportPrivateData()
+            , document: this.document.exportPublicData()
+            })
+  return this // предыдущий вызов возвращает this
+}
+
+/**
+ * Close last opened document
+ */
+proto.closeDocument = function () {
+  if (this.document !== null) this.document.removeCollaborator(this)
+  return this
+}
+//endregion
+
+
+//region *** Common API & Helpers ***
+
+/**
+ * Update user data/props
+ * @param data
+ * @returns {User}
+ */
+proto.updateData = function (data) {
+  delete data.id
+
+  _.extend( this.props
+          , data
+          , function (a, b) { return b ? b : a }
+          )
+
+  return this
+}
+
+/**
+ * Helper for our "stupid" API
+ * @param data
+ * @returns {User}
+ * @private
+ */
+proto.onOpenEvent = function (data) {
+  if (data.user) this.updateData(data.user)
+  this.openDocument(data.document)
+  return this // предыдущий вызов возвращает this
+}
+/**
+ * Destroy info about user
+ */
+proto.destroy = function () {
+  this.closeDocument() // стоит по аналогии добавить return
+}
