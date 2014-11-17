@@ -10,7 +10,7 @@ var _ = require('lodash-node')
   , Documents = require('../documents')
   , User = module.exports = function (options) {
     var _connection = this._connection =  options.connection
-      , _stream = this._stream = new Duplex({ objectMode: true })
+      , _stream = this._stream = Duplex({ objectMode: true })
 
       this.id = getUID()
       this.document = null
@@ -35,7 +35,7 @@ var _ = require('lodash-node')
           console.log('error', msg)
           return _connection.close(msg)
         })
-        .on('end', function () { // можно делать чейнинг в вызовах on
+        .on('end', function () {
           return _connection.close()
         })
 
