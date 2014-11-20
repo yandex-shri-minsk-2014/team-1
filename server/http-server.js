@@ -54,8 +54,10 @@ exports.start = function (config) {
 
               var docJSON = JSON.stringify(docObj)
 
-              if (docJSON != null) {
-                //response.writeHead(200, { 'Content-Type': 'application/json' })
+              if (docJSON !== null) {
+                //response.writeHead( 200
+                //                  , { 'Content-Type': 'application/json' }
+                //                  )
                 console.log(docJSON)
                 //response.write(docJSON)
                 response.end(docJSON)
@@ -110,7 +112,7 @@ function getDocument(docId) {
   var pathToDoc = __dirname + path.sep + 'savedDocuments' + path.sep + docId
 
   if (fs.existsSync(pathToDoc)) {
-    return fs.readFileSync(pathToDoc, "utf8")
+    return fs.readFileSync(pathToDoc, 'utf8')
   }
   else {
     return null
