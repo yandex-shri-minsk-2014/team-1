@@ -1,4 +1,5 @@
 var Team1 = Team1 || {}
+var Host = window.location.hostname + ':7900'
 
 Team1 = {
   start: function (options) {
@@ -57,8 +58,12 @@ Team1 = {
     if (document.users)
       this.Roster.fillList(document.users)
 
-    if (document.id)
+    if (document.id) {
       window.location.hash = '#' + document.id
+      if (Team1.Roster.getUsersCount() == 1) {
+        this.loadDocument(document.id)
+      }
+    }
   }
 
   , openDocument: function () {
@@ -78,6 +83,7 @@ Team1 = {
     this.doc.setOnOpenMessageFn(this.onSocketOpen)
     this.doc.setOnJoinMessageFn(this.onSocketJoin)
     this.doc.setOnCloseMessageFn(this.onSocketLeave)
+    this.doc.setOnMetaMessageFn(this.onSocketMeta)
   }
 
   , send: function (message, callback) {
@@ -111,6 +117,7 @@ Team1 = {
 
   , onSocketLeave: function (data) {
     this.Roster.remove(data.user.id)
+    this.Editor.removeCursor(data.user.id)
   }
 
   , onSocketOpen: function (data) {
@@ -120,15 +127,76 @@ Team1 = {
     this.buildDocumentInterface(data.document || {})
   }
 
-  , getSocket: function () {
-    return new WebSocket('ws://' + 'localhost' + ':7900')
+  , onSocketMeta : function (data) {
+    this.Editor.updateCursor(
+      { id: data.id
+      , position : data.meta
+      , color : data.color
+      }
+    )
   }
 
+  , saveDocument: function () {
+    var docContentObj = {
+      operation: 'save'
+      , docName: this.documentId
+      , docContent: this.Editor.codeEditor.getValue()
+    }
+
+    $.ajax({ type: 'POST'
+            , url: window.location.pathname
+            , data: JSON.stringify(docContentObj)
+            , success: function() {
+                console.log('success')
+            }
+            , fail: function() {
+                console.log('error')
+            }
+        })
+  }
+
+  , loadDocument: function () {
+    var docContentObj = {
+      operation: 'get'
+      , docName: this.documentId
+    }
+
+    $.ajax({ type: 'POST'
+            , url: window.location.pathname
+            , dataType: 'json'
+            , data: JSON.stringify(docContentObj)
+            , success: function(doc) {
+                console.log('success')
+                console.log(doc.value);
+                if (doc !== null) {
+                  Team1.Editor.codeEditor.getDoc().setValue(doc.value)
+                }
+            }
+            , fail: function() {
+                console.log('error')
+            }
+        })
+  }
+
+  , getSocket : function () {
+    return new WebSocket('ws://' + Host)
+  }
 }
 
-//wrong place for it.
 $(document).ready(function () {
   Team1.start({
-    socketUrl: 'http://127.0.0.1:7900'
+    socketUrl: 'http://' + Host
   })
 })
+
+window.onbeforeunload = function () {
+  if (Team1.Roster.getUsersCount() == 1) {
+      Team1.saveDocument()
+  }
+}
+
+window.onunload = function () {
+  if (Team1.Roster.getUsersCount() == 1) {
+      Team1.saveDocument()
+  }
+}
