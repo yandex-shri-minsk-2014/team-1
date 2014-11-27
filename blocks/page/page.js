@@ -1,4 +1,4 @@
-var Team1 = Team1 || {}
+var Team1 = Team1 || {} // ниже полностью меняем переменную
 var Host = window.location.hostname + ':7900'
 
 Team1 = {
@@ -41,7 +41,7 @@ Team1 = {
    * Create interface for document
    */
   , buildDocumentInterface: function (document) {
-    var self = this
+    var self = this // лучше сохранить this.dos и this.Editor
 
     this.Roster = new Team1.Roster()
     this.Editor = new Team1.Editor()
@@ -49,6 +49,7 @@ Team1 = {
     this.doc.subscribe()
 
     this.doc.whenReady(function () {
+      // self.doc.type стоит сложить в переменную
       if (!self.doc.type) self.doc.create('text')
 
       if (self.doc.type && self.doc.type.name === 'text')
