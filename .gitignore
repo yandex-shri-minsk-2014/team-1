@@ -8,7 +8,6 @@ libs
 dist
 index.html
 npm-debug.log
-config/current.json
 server/savedDocuments
 dist
 
